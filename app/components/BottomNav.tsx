@@ -38,6 +38,7 @@ const moreRoutes = [
   "/lembretes",
   "/vida-offline",
   "/backup",
+  "/lista-compras",
 ];
 
 export default function BottomNav() {
