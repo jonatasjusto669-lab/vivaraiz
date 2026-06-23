@@ -1,0 +1,18 @@
+{
+  "name": "VivaRaiz",
+  "short_name": "VivaRaiz",
+  "description": "Organize sua casa e volte a viver fora da tela.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#F7F3EA",
+  "theme_color": "#4F6F38",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
