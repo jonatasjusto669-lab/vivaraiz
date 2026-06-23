@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-type HomeItem = {
+type Item = {
   id: string;
   user_id: string;
   name: string;
@@ -22,7 +22,7 @@ type Plant = {
   id: string;
   user_id: string;
   name: string;
-  place: string | null;
+  place: string;
   watering_frequency: number;
   planted_at: string | null;
   next_watering_date: string | null;
@@ -42,37 +42,16 @@ type OfflineMission = {
   created_at: string;
 };
 
-type LocalHomeItem = {
+type ShoppingItem = {
   id: string;
+  user_id: string;
   name: string;
   category: string;
-  location: string;
-  quantity: string;
-  expirationDate: string;
-  reminderDate: string;
-  notes: string;
-  createdAt: string;
-};
-
-type LocalPlant = {
-  id: string;
-  name: string;
-  place: string;
-  wateringFrequency: string;
-  plantedAt: string;
-  nextWateringDate: string;
-  notes: string;
-  createdAt: string;
-};
-
-type LocalOfflineMission = {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  completed: boolean;
-  completedAt: string | null;
-  createdAt: string;
+  quantity: string | null;
+  notes: string | null;
+  purchased: boolean;
+  created_at: string;
+  updated_at: string | null;
 };
 
 function getTodayStart() {
@@ -81,7 +60,7 @@ function getTodayStart() {
   return today;
 }
 
-function getDateDiffInDays(dateString: string) {
+function getDiffInDays(dateString: string) {
   const today = getTodayStart();
   const date = new Date(`${dateString}T00:00:00`);
   const diff = date.getTime() - today.getTime();
@@ -89,126 +68,110 @@ function getDateDiffInDays(dateString: string) {
   return Math.round(diff / (1000 * 60 * 60 * 24));
 }
 
-function mirrorItemsToLocalStorage(items: HomeItem[]) {
-  const localItems: LocalHomeItem[] = items.map((item) => ({
-    id: item.id,
-    name: item.name,
-    category: item.category,
-    location: item.location || "",
-    quantity: item.quantity || "",
-    expirationDate: item.expiration_date || "",
-    reminderDate: item.reminder_date || "",
-    notes: item.notes || "",
-    createdAt: item.created_at,
-  }));
+function formatDate(dateString: string | null) {
+  if (!dateString) return "Sem data";
 
-  localStorage.setItem("vivaraiz_items", JSON.stringify(localItems));
+  return new Date(`${dateString}T00:00:00`).toLocaleDateString("pt-BR");
 }
 
-function mirrorPlantsToLocalStorage(plants: Plant[]) {
-  const localPlants: LocalPlant[] = plants.map((plant) => ({
-    id: plant.id,
-    name: plant.name,
-    place: plant.place || "outro",
-    wateringFrequency: String(plant.watering_frequency),
-    plantedAt: plant.planted_at || "",
-    nextWateringDate: plant.next_watering_date || "",
-    notes: plant.notes || "",
-    createdAt: plant.created_at,
-  }));
+function getUrgencyText(dateString: string | null) {
+  if (!dateString) return "Sem data";
 
-  localStorage.setItem("vivaraiz_plants", JSON.stringify(localPlants));
-}
+  const diff = getDiffInDays(dateString);
 
-function mirrorMissionsToLocalStorage(missions: OfflineMission[]) {
-  const localMissions: LocalOfflineMission[] = missions.map((mission) => ({
-    id: mission.id,
-    title: mission.title,
-    description: mission.description || "",
-    category: mission.category || "",
-    completed: mission.completed,
-    completedAt: mission.completed_at,
-    createdAt: mission.created_at,
-  }));
+  if (diff < 0) return `Atrasado há ${Math.abs(diff)} dia${Math.abs(diff) === 1 ? "" : "s"}`;
+  if (diff === 0) return "É hoje";
+  if (diff === 1) return "Amanhã";
 
-  localStorage.setItem(
-    "vivaraiz_offline_missions",
-    JSON.stringify(localMissions)
-  );
+  return `Em ${diff} dias`;
 }
 
 export default function DashboardPage() {
   const router = useRouter();
 
-  const [items, setItems] = useState<HomeItem[]>([]);
+  const [userName, setUserName] = useState("você");
+  const [items, setItems] = useState<Item[]>([]);
   const [plants, setPlants] = useState<Plant[]>([]);
   const [missions, setMissions] = useState<OfflineMission[]>([]);
-  const [userName, setUserName] = useState("você");
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     async function loadDashboard() {
-      const { data } = await supabase.auth.getSession();
+      const { data: sessionData } = await supabase.auth.getSession();
 
-      if (!data.session) {
+      if (!sessionData.session) {
         router.push("/login");
         return;
       }
 
-      const user = data.session.user;
+      const user = sessionData.session.user;
       const currentUserId = user.id;
 
-      setUserName(user.user_metadata?.name || user.email || "você");
+      setUserName(user.user_metadata?.name || "você");
 
-      const [itemsResult, plantsResult, missionsResult] = await Promise.all([
-        supabase
-          .from("items")
-          .select("*")
-          .eq("user_id", currentUserId)
-          .order("created_at", { ascending: false }),
+      const [itemsResponse, plantsResponse, missionsResponse, shoppingResponse] =
+        await Promise.all([
+          supabase
+            .from("items")
+            .select("*")
+            .eq("user_id", currentUserId)
+            .order("created_at", { ascending: false }),
 
-        supabase
-          .from("plants")
-          .select("*")
-          .eq("user_id", currentUserId)
-          .order("next_watering_date", {
-            ascending: true,
-            nullsFirst: false,
-          }),
+          supabase
+            .from("plants")
+            .select("*")
+            .eq("user_id", currentUserId)
+            .order("created_at", { ascending: false }),
 
-        supabase
-          .from("offline_missions")
-          .select("*")
-          .eq("user_id", currentUserId)
-          .order("created_at", { ascending: false }),
-      ]);
+          supabase
+            .from("offline_missions")
+            .select("*")
+            .eq("user_id", currentUserId)
+            .order("created_at", { ascending: false }),
 
-      if (itemsResult.error) {
-        setMessage(`Erro ao carregar itens: ${itemsResult.error.message}`);
+          supabase
+            .from("shopping_items")
+            .select("*")
+            .eq("user_id", currentUserId)
+            .order("purchased", { ascending: true })
+            .order("created_at", { ascending: false }),
+        ]);
+
+      if (itemsResponse.error) {
+        setMessage(`Erro ao carregar itens: ${itemsResponse.error.message}`);
       }
 
-      if (plantsResult.error) {
-        setMessage(`Erro ao carregar plantas: ${plantsResult.error.message}`);
+      if (plantsResponse.error) {
+        setMessage(`Erro ao carregar plantas: ${plantsResponse.error.message}`);
       }
 
-      if (missionsResult.error) {
-        setMessage(
-          `Erro ao carregar missões: ${missionsResult.error.message}`
-        );
+      if (missionsResponse.error) {
+        setMessage(`Erro ao carregar missões: ${missionsResponse.error.message}`);
       }
 
-      const loadedItems = (itemsResult.data || []) as HomeItem[];
-      const loadedPlants = (plantsResult.data || []) as Plant[];
-      const loadedMissions = (missionsResult.data || []) as OfflineMission[];
+      if (shoppingResponse.error) {
+        setMessage(`Erro ao carregar compras: ${shoppingResponse.error.message}`);
+      }
+
+      const loadedItems = (itemsResponse.data || []) as Item[];
+      const loadedPlants = (plantsResponse.data || []) as Plant[];
+      const loadedMissions = (missionsResponse.data || []) as OfflineMission[];
+      const loadedShoppingItems = (shoppingResponse.data || []) as ShoppingItem[];
 
       setItems(loadedItems);
       setPlants(loadedPlants);
       setMissions(loadedMissions);
+      setShoppingItems(loadedShoppingItems);
 
-      mirrorItemsToLocalStorage(loadedItems);
-      mirrorPlantsToLocalStorage(loadedPlants);
-      mirrorMissionsToLocalStorage(loadedMissions);
+      localStorage.setItem("vivaraiz-items", JSON.stringify(loadedItems));
+      localStorage.setItem("vivaraiz-plants", JSON.stringify(loadedPlants));
+      localStorage.setItem("vivaraiz-missions", JSON.stringify(loadedMissions));
+      localStorage.setItem(
+        "vivaraiz-shopping-items",
+        JSON.stringify(loadedShoppingItems)
+      );
 
       setLoading(false);
     }
@@ -216,186 +179,146 @@ export default function DashboardPage() {
     loadDashboard();
   }, [router]);
 
-  const foods = useMemo(() => {
+  const foodItems = useMemo(() => {
     return items.filter((item) => item.category === "comida");
   }, [items]);
 
-  const expiringSoon = useMemo(() => {
-    return foods
-      .filter((food) => {
-        if (!food.expiration_date) return false;
+  const expiringFoods = useMemo(() => {
+    return foodItems.filter((item) => {
+      if (!item.expiration_date) return false;
 
-        const diff = getDateDiffInDays(food.expiration_date);
-        return diff <= 7;
-      })
-      .sort((a, b) => {
-        if (!a.expiration_date || !b.expiration_date) return 0;
+      const diff = getDiffInDays(item.expiration_date);
+      return diff <= 7;
+    });
+  }, [foodItems]);
 
-        return (
-          new Date(`${a.expiration_date}T00:00:00`).getTime() -
-          new Date(`${b.expiration_date}T00:00:00`).getTime()
-        );
-      });
-  }, [foods]);
-
-  const reminders = useMemo(() => {
-    return items
-      .filter((item) => item.reminder_date)
-      .sort((a, b) => {
-        if (!a.reminder_date || !b.reminder_date) return 0;
-
-        return (
-          new Date(`${a.reminder_date}T00:00:00`).getTime() -
-          new Date(`${b.reminder_date}T00:00:00`).getTime()
-        );
-      });
-  }, [items]);
-
-  const dueReminders = useMemo(() => {
-    return reminders.filter((item) => {
+  const reminderItems = useMemo(() => {
+    return items.filter((item) => {
       if (!item.reminder_date) return false;
 
-      const diff = getDateDiffInDays(item.reminder_date);
-      return diff <= 0;
+      return getDiffInDays(item.reminder_date) <= 7;
     });
-  }, [reminders]);
+  }, [items]);
 
-  const plantsNeedWater = useMemo(() => {
+  const plantsToWater = useMemo(() => {
     return plants.filter((plant) => {
       if (!plant.next_watering_date) return false;
 
-      const diff = getDateDiffInDays(plant.next_watering_date);
-      return diff <= 0;
+      return getDiffInDays(plant.next_watering_date) <= 0;
     });
   }, [plants]);
+
+  const pendingShoppingItems = useMemo(() => {
+    return shoppingItems.filter((item) => !item.purchased);
+  }, [shoppingItems]);
 
   const completedMissions = useMemo(() => {
     return missions.filter((mission) => mission.completed);
   }, [missions]);
 
-  const pendingMission = useMemo(() => {
-    return missions.find((mission) => !mission.completed);
-  }, [missions]);
-
-  const recommendedAction = useMemo(() => {
-    if (dueReminders.length > 0) {
+  const mainAction = useMemo(() => {
+    if (pendingShoppingItems.length > 0) {
       return {
-        emoji: "🔔",
-        label: "Prioridade de hoje",
-        title: "Cuide dos seus lembretes",
-        text: "Tem algo precisando da sua atenção agora.",
-        href: "/lembretes",
-        button: "Ver lembretes",
+        emoji: "🛒",
+        title: "Você tem compras pendentes",
+        description: `${pendingShoppingItems.length} item${
+          pendingShoppingItems.length === 1 ? "" : "s"
+        } na sua lista de compras.`,
+        href: "/lista-compras",
+        button: "Ver lista",
       };
     }
 
-    if (expiringSoon.length > 0) {
+    if (expiringFoods.length > 0) {
       return {
-        emoji: "🍅",
-        label: "Evite desperdício",
-        title: "Use algo perto de vencer",
-        text: `${expiringSoon[0].name} precisa de atenção na cozinha.`,
+        emoji: "🍲",
+        title: "Use uma comida antes de vencer",
+        description: `${expiringFoods.length} alimento${
+          expiringFoods.length === 1 ? "" : "s"
+        } precisam de atenção na cozinha.`,
         href: "/minha-cozinha",
         button: "Abrir cozinha",
       };
     }
 
-    if (plantsNeedWater.length > 0) {
+    if (plantsToWater.length > 0) {
       return {
-        emoji: "🌿",
-        label: "Cuidado com a horta",
-        title: "Tem planta pedindo água",
-        text: `${plantsNeedWater[0].name} precisa de cuidado hoje.`,
+        emoji: "🌱",
+        title: "Tem planta para regar",
+        description: `${plantsToWater.length} planta${
+          plantsToWater.length === 1 ? "" : "s"
+        } precisam de água hoje.`,
         href: "/minha-horta",
-        button: "Ver horta",
+        button: "Regar plantas",
       };
     }
 
-    if (pendingMission) {
+    if (reminderItems.length > 0) {
       return {
-        emoji: "🌤️",
-        label: "Vida fora da tela",
-        title: "Faça uma missão offline",
-        text: pendingMission.title,
-        href: "/vida-offline",
-        button: "Ver missão",
+        emoji: "🔔",
+        title: "Você tem lembretes próximos",
+        description: `${reminderItems.length} lembrete${
+          reminderItems.length === 1 ? "" : "s"
+        } para verificar.`,
+        href: "/lembretes",
+        button: "Ver lembretes",
       };
     }
 
     return {
-      emoji: "🏡",
-      label: "Comece por aqui",
-      title: "Cadastre sua vida real",
-      text: "Adicione itens, comidas, plantas e lembretes para o VivaRaiz te ajudar melhor.",
+      emoji: "🌱",
+      title: "Tudo tranquilo por enquanto",
+      description:
+        "Continue cadastrando sua casa, sua cozinha, suas plantas e suas compras.",
       href: "/minha-casa",
-      button: "Adicionar item",
+      button: "Adicionar algo",
     };
-  }, [dueReminders, expiringSoon, plantsNeedWater, pendingMission]);
-
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push("/login");
-  }
+  }, [pendingShoppingItems, expiringFoods, plantsToWater, reminderItems]);
 
   function StatCard({
     emoji,
     value,
     label,
+    href,
   }: {
     emoji: string;
     value: number;
     label: string;
+    href: string;
   }) {
     return (
-      <div className="rounded-[1.6rem] bg-white p-4 shadow-sm">
+      <a href={href} className="card-touch rounded-[1.5rem] bg-white p-4 shadow-sm">
         <p className="text-2xl">{emoji}</p>
 
         <p className="mt-3 text-2xl font-black">{value}</p>
 
         <p className="mt-1 text-sm text-[#6B715F]">{label}</p>
-      </div>
+      </a>
     );
   }
 
   function QuickCard({
-    href,
     emoji,
     title,
     description,
-    highlight,
+    href,
   }: {
-    href: string;
     emoji: string;
     title: string;
     description: string;
-    highlight?: boolean;
+    href: string;
   }) {
     return (
-      <a
-        href={href}
-        className={`card-touch rounded-[2rem] p-5 shadow-sm ${
-          highlight ? "bg-[#4F6F38] text-white" : "bg-white text-[#2F3A2F]"
-        }`}
-      >
+      <a href={href} className="card-touch rounded-[2rem] bg-white p-5 shadow-sm">
         <div className="flex items-start gap-4">
-          <div
-            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl ${
-              highlight ? "bg-white/15" : "bg-[#F7F3EA]"
-            }`}
-          >
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#F7F3EA] text-3xl">
             {emoji}
           </div>
 
           <div>
-            <h3 className="text-xl font-black">{title}</h3>
+            <h2 className="text-xl font-black">{title}</h2>
 
-            <p
-              className={`mt-1 text-sm ${
-                highlight ? "text-white/80" : "text-[#6B715F]"
-              }`}
-            >
-              {description}
-            </p>
+            <p className="mt-2 text-sm text-[#6B715F]">{description}</p>
           </div>
         </div>
       </a>
@@ -408,10 +331,12 @@ export default function DashboardPage() {
         <section className="rounded-[2rem] bg-white p-8 text-center shadow-sm">
           <p className="text-5xl">🌱</p>
 
-          <h1 className="mt-4 text-2xl font-black">Carregando VivaRaiz...</h1>
+          <h1 className="mt-4 text-2xl font-black">
+            Carregando seu VivaRaiz...
+          </h1>
 
           <p className="mt-2 text-[#6B715F]">
-            Buscando seus dados no Supabase.
+            Buscando sua casa, horta, cozinha e compras.
           </p>
         </section>
       </main>
@@ -423,25 +348,23 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-6xl">
         <header className="flex items-start justify-between gap-4">
           <div>
-            <a href="/" className="text-xl font-black md:text-2xl">
-              🌱 VivaRaiz
-            </a>
+            <p className="text-xl font-black md:text-2xl">🌱 VivaRaiz</p>
 
             <h1 className="mt-5 text-3xl font-black leading-tight md:text-5xl">
-              Olá, {userName}.
+              Olá, {userName}
             </h1>
 
             <p className="mt-2 max-w-xl text-sm text-[#6B715F] md:text-base">
-              Cuide da casa, da comida, da horta e da vida fora da tela.
+              Veja o que precisa da sua atenção hoje.
             </p>
           </div>
 
-          <button
-            onClick={handleLogout}
+          <a
+            href="/configuracoes"
             className="hidden rounded-full border border-[#7A8F5A] px-5 py-3 text-center font-bold text-[#4F6F38] md:block"
           >
-            Sair
-          </button>
+            Configurações
+          </a>
         </header>
 
         {message && (
@@ -450,188 +373,209 @@ export default function DashboardPage() {
           </section>
         )}
 
-        <section className="mt-6 rounded-[2.2rem] bg-[#4F6F38] p-6 text-white shadow-sm md:mt-10 md:p-8">
+        <section className="mt-6 rounded-[2.2rem] bg-[#4F6F38] p-6 text-white shadow-sm md:p-8">
           <p className="w-fit rounded-full bg-white/15 px-4 py-2 text-xs font-black text-white/80">
-            {recommendedAction.label}
+            Ação recomendada
           </p>
 
-          <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-6xl">{recommendedAction.emoji}</p>
+          <p className="mt-6 text-6xl">{mainAction.emoji}</p>
 
-              <h2 className="mt-5 text-3xl font-black leading-tight md:text-5xl">
-                {recommendedAction.title}
-              </h2>
+          <h2 className="mt-5 text-3xl font-black leading-tight md:text-5xl">
+            {mainAction.title}
+          </h2>
 
-              <p className="mt-3 max-w-2xl text-white/80">
-                {recommendedAction.text}
-              </p>
-            </div>
+          <p className="mt-3 max-w-2xl text-white/80">
+            {mainAction.description}
+          </p>
 
-            <a
-              href={recommendedAction.href}
-              className="rounded-full bg-white px-6 py-4 text-center font-black text-[#4F6F38] transition hover:bg-[#EFE8DA]"
-            >
-              {recommendedAction.button}
-            </a>
-          </div>
+          <a
+            href={mainAction.href}
+            className="mt-6 inline-block rounded-full bg-white px-6 py-4 text-center font-black text-[#4F6F38] transition hover:bg-[#EFE8DA]"
+          >
+            {mainAction.button}
+          </a>
         </section>
 
-        <section className="mt-5 grid grid-cols-2 gap-3 md:mt-6 md:grid-cols-4">
-          <StatCard emoji="📦" value={items.length} label="itens" />
-          <StatCard emoji="🌿" value={plants.length} label="plantas" />
-          <StatCard emoji="🔔" value={reminders.length} label="lembretes" />
+        <section className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatCard
-            emoji="🌤️"
-            value={completedMissions.length}
-            label="missões"
+            emoji="📦"
+            value={items.length}
+            label="itens salvos"
+            href="/minha-casa"
+          />
+
+          <StatCard
+            emoji="🍲"
+            value={expiringFoods.length}
+            label="comidas em atenção"
+            href="/minha-cozinha"
+          />
+
+          <StatCard
+            emoji="🌱"
+            value={plantsToWater.length}
+            label="plantas para regar"
+            href="/minha-horta"
+          />
+
+          <StatCard
+            emoji="🛒"
+            value={pendingShoppingItems.length}
+            label="compras pendentes"
+            href="/lista-compras"
           />
         </section>
 
-        <section className="mt-8">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="text-sm font-bold text-[#7A8F5A]">
-                Ações rápidas
-              </p>
+        <section className="mt-6 grid gap-4 md:grid-cols-2">
+          <QuickCard
+            emoji="🏡"
+            title="Minha Casa"
+            description="Cadastre objetos, documentos, remédios, alimentos e coisas importantes."
+            href="/minha-casa"
+          />
 
-              <h2 className="mt-1 text-2xl font-black md:text-3xl">
-                O que vamos cuidar agora?
-              </h2>
-            </div>
+          <QuickCard
+            emoji="🍲"
+            title="Minha Cozinha"
+            description="Veja alimentos vencendo e use primeiro o que precisa."
+            href="/minha-cozinha"
+          />
 
-            <a
-              href="/mais"
-              className="hidden rounded-full bg-white px-5 py-3 text-sm font-black text-[#4F6F38] shadow-sm md:block"
-            >
-              Ver tudo
-            </a>
-          </div>
+          <QuickCard
+            emoji="🛒"
+            title="Lista de Compras"
+            description="Anote o que falta comprar e marque quando já comprou."
+            href="/lista-compras"
+          />
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <QuickCard
-              href="/minha-casa"
-              emoji="🏡"
-              title="Minha Casa"
-              description="Cadastre objetos, alimentos, documentos e remédios."
-              highlight
-            />
+          <QuickCard
+            emoji="🌱"
+            title="Minha Horta"
+            description="Cuide das plantas e veja o que precisa ser regado."
+            href="/minha-horta"
+          />
 
-            <QuickCard
-              href="/minha-cozinha"
-              emoji="🍲"
-              title="Minha Cozinha"
-              description={
-                expiringSoon.length > 0
-                  ? `${expiringSoon.length} alimento${
-                      expiringSoon.length === 1 ? "" : "s"
-                    } perto de vencer.`
-                  : "Veja comidas e sugestões simples."
-              }
-            />
+          <QuickCard
+            emoji="🔔"
+            title="Lembretes"
+            description="Veja datas importantes, manutenções e coisas próximas."
+            href="/lembretes"
+          />
 
-            <QuickCard
-              href="/minha-horta"
-              emoji="🌱"
-              title="Minha Horta"
-              description={
-                plantsNeedWater.length > 0
-                  ? `${plantsNeedWater.length} planta${
-                      plantsNeedWater.length === 1 ? "" : "s"
-                    } precisa${
-                      plantsNeedWater.length === 1 ? "" : "m"
-                    } de água.`
-                  : "Cuide das regas e plantas."
-              }
-            />
-
-            <QuickCard
-              href="/lembretes"
-              emoji="🔔"
-              title="Lembretes"
-              description={
-                dueReminders.length > 0
-                  ? `${dueReminders.length} lembrete${
-                      dueReminders.length === 1 ? "" : "s"
-                    } para hoje.`
-                  : "Veja tarefas e coisas importantes."
-              }
-            />
-
-            <QuickCard
-              href="/onde-guardei"
-              emoji="🔎"
-              title="Onde Guardei?"
-              description="Encontre rápido onde cada coisa está."
-            />
-
-            <QuickCard
-              href="/vida-offline"
-              emoji="🌤️"
-              title="Vida Offline"
-              description={
-                pendingMission
-                  ? pendingMission.title
-                  : "Gere uma missão para sair da tela."
-              }
-            />
-          </div>
+          <QuickCard
+            emoji="🔎"
+            title="Onde Guardei?"
+            description="Encontre rápido onde você guardou cada coisa."
+            href="/onde-guardei"
+          />
         </section>
 
-        <section className="mt-8 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-[2rem] bg-white p-6 shadow-sm">
-            <p className="text-3xl">🍅</p>
+        <section className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+            <p className="text-3xl">🛒</p>
 
-            <h2 className="mt-4 text-2xl font-black">Cozinha agora</h2>
+            <h2 className="mt-4 text-2xl font-black">Próximas compras</h2>
 
-            {expiringSoon.length === 0 ? (
-              <p className="mt-2 text-[#6B715F]">
-                Nenhum alimento vencendo esta semana.
+            {pendingShoppingItems.length === 0 ? (
+              <p className="mt-2 text-sm text-[#6B715F]">
+                Nenhuma compra pendente.
               </p>
             ) : (
               <div className="mt-4 space-y-3">
-                {expiringSoon.slice(0, 3).map((food) => (
-                  <div
+                {pendingShoppingItems.slice(0, 3).map((item) => (
+                  <a
+                    key={item.id}
+                    href="/lista-compras"
+                    className="block rounded-2xl bg-[#F7F3EA] p-4"
+                  >
+                    <p className="font-black">{item.name}</p>
+
+                    {item.quantity && (
+                      <p className="mt-1 text-sm text-[#6B715F]">
+                        {item.quantity}
+                      </p>
+                    )}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+            <p className="text-3xl">🍲</p>
+
+            <h2 className="mt-4 text-2xl font-black">Cozinha</h2>
+
+            {expiringFoods.length === 0 ? (
+              <p className="mt-2 text-sm text-[#6B715F]">
+                Nenhuma comida vencendo em breve.
+              </p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {expiringFoods.slice(0, 3).map((food) => (
+                  <a
                     key={food.id}
-                    className="rounded-2xl bg-[#F7F3EA] p-4"
+                    href="/minha-cozinha"
+                    className="block rounded-2xl bg-[#F7F3EA] p-4"
                   >
                     <p className="font-black">{food.name}</p>
 
                     <p className="mt-1 text-sm text-[#6B715F]">
-                      Validade: {food.expiration_date}
+                      {getUrgencyText(food.expiration_date)} •{" "}
+                      {formatDate(food.expiration_date)}
                     </p>
-                  </div>
+                  </a>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="rounded-[2rem] bg-white p-6 shadow-sm">
-            <p className="text-3xl">🌿</p>
+          <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+            <p className="text-3xl">🌱</p>
 
-            <h2 className="mt-4 text-2xl font-black">Horta agora</h2>
+            <h2 className="mt-4 text-2xl font-black">Horta</h2>
 
-            {plantsNeedWater.length === 0 ? (
-              <p className="mt-2 text-[#6B715F]">
-                Nenhuma planta precisa de rega agora.
+            {plantsToWater.length === 0 ? (
+              <p className="mt-2 text-sm text-[#6B715F]">
+                Nenhuma planta precisa de água agora.
               </p>
             ) : (
               <div className="mt-4 space-y-3">
-                {plantsNeedWater.slice(0, 3).map((plant) => (
-                  <div
+                {plantsToWater.slice(0, 3).map((plant) => (
+                  <a
                     key={plant.id}
-                    className="rounded-2xl bg-[#F7F3EA] p-4"
+                    href="/minha-horta"
+                    className="block rounded-2xl bg-[#F7F3EA] p-4"
                   >
                     <p className="font-black">{plant.name}</p>
 
                     <p className="mt-1 text-sm text-[#6B715F]">
-                      Próxima rega: {plant.next_watering_date}
+                      {getUrgencyText(plant.next_watering_date)} •{" "}
+                      {formatDate(plant.next_watering_date)}
                     </p>
-                  </div>
+                  </a>
                 ))}
               </div>
             )}
           </div>
+        </section>
+
+        <section className="mt-6 rounded-[2rem] bg-white p-6 shadow-sm">
+          <p className="text-3xl">🌤️</p>
+
+          <h2 className="mt-4 text-2xl font-black">Vida Offline</h2>
+
+          <p className="mt-2 text-[#6B715F]">
+            Você já concluiu {completedMissions.length} missão
+            {completedMissions.length === 1 ? "" : "ões"} offline.
+          </p>
+
+          <a
+            href="/vida-offline"
+            className="mt-5 inline-block rounded-full bg-[#E3D8BD] px-5 py-3 text-sm font-black text-[#5B4A2F]"
+          >
+            Ver missões
+          </a>
         </section>
       </div>
     </main>
