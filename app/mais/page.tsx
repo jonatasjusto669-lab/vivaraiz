@@ -4,6 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
+const ADMIN_EMAIL = "iphonedejonatas24@gmail.com";
+
+const adminItem = {
+  href: "/admin-feedbacks",
+  emoji: "🛡️",
+  title: "Admin Feedbacks",
+  description: "Veja todos os feedbacks enviados pelos usuários.",
+};
+
 const moreItems = [
   {
     href: "/como-usar",
@@ -30,10 +39,10 @@ const moreItems = [
     description: "Veja as regras simples de uso do VivaRaiz.",
   },
   {
-  href: "/feedback",
-  emoji: "💬",
-  title: "Feedback",
-  description: "Envie sugestões, erros encontrados, elogios ou ideias.",
+    href: "/feedback",
+    emoji: "💬",
+    title: "Feedback",
+    description: "Envie sugestões, erros encontrados, elogios ou ideias.",
   },
   {
     href: "/lista-compras",
@@ -104,6 +113,9 @@ export default function MaisPage() {
     router.push("/login");
   }
 
+  const visibleMoreItems =
+    userEmail === ADMIN_EMAIL ? [adminItem, ...moreItems] : moreItems;
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#F7F3EA] px-6 text-[#2F3A2F]">
@@ -161,8 +173,27 @@ export default function MaisPage() {
           </div>
         </section>
 
+        {userEmail === ADMIN_EMAIL && (
+          <section className="mt-6 rounded-[2rem] bg-[#2F3A2F] p-6 text-white shadow-sm">
+            <p className="text-4xl">🛡️</p>
+
+            <h2 className="mt-4 text-2xl font-black">Área do administrador</h2>
+
+            <p className="mt-2 text-white/75">
+              Você está logado como administrador do VivaRaiz.
+            </p>
+
+            <a
+              href="/admin-feedbacks"
+              className="mt-5 inline-block rounded-full bg-white px-5 py-3 text-sm font-black text-[#2F3A2F]"
+            >
+              Ver feedbacks dos usuários
+            </a>
+          </section>
+        )}
+
         <section className="mt-6 grid gap-4">
-          {moreItems.map((item) => (
+          {visibleMoreItems.map((item) => (
             <a
               key={item.href}
               href={item.href}

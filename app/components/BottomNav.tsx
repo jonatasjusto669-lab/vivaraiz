@@ -37,6 +37,7 @@ const moreRoutes = [
   "/privacidade",
   "/termos",
   "/feedback",
+  "/admin-feedbacks",
   "/configuracoes",
   "/onde-guardei",
   "/lembretes",
