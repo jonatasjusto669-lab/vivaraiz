@@ -30,6 +30,12 @@ const moreItems = [
     description: "Veja as regras simples de uso do VivaRaiz.",
   },
   {
+  href: "/feedback",
+  emoji: "💬",
+  title: "Feedback",
+  description: "Envie sugestões, erros encontrados, elogios ou ideias.",
+  },
+  {
     href: "/lista-compras",
     emoji: "🛒",
     title: "Lista de Compras",
