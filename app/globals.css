@@ -1,26 +1,86 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f3ea;
+  --foreground: #2f3a2f;
+  --green: #4f6f38;
+  --green-dark: #3f5c2b;
+  --soft-card: #fbf8f0;
+  --border-soft: #ddd2bc;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  background: var(--background);
 }
 
 body {
+  margin: 0;
+  min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+textarea {
+  resize: vertical;
+}
+
+::selection {
+  background: #4f6f38;
+  color: white;
+}
+
+.safe-bottom {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+}
+
+.mobile-page {
+  min-height: 100vh;
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+}
+
+.card-touch {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.card-touch:active {
+  transform: scale(0.98);
+}
+
+@media (min-width: 768px) {
+  .mobile-page {
+    padding-bottom: 2rem;
+  }
 }

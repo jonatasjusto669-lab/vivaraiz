@@ -39,14 +39,14 @@ type LocalHomeItem = {
   createdAt: string;
 };
 
-const categories: { value: ItemCategory; label: string }[] = [
-  { value: "comida", label: "Comida" },
-  { value: "objeto", label: "Objeto" },
-  { value: "documento", label: "Documento" },
-  { value: "remedio", label: "Remédio" },
-  { value: "manutencao", label: "Manutenção" },
-  { value: "planta", label: "Planta" },
-  { value: "outro", label: "Outro" },
+const categories: { value: ItemCategory; label: string; emoji: string }[] = [
+  { value: "comida", label: "Comida", emoji: "🍅" },
+  { value: "objeto", label: "Objeto", emoji: "📦" },
+  { value: "documento", label: "Documento", emoji: "📄" },
+  { value: "remedio", label: "Remédio", emoji: "💊" },
+  { value: "manutencao", label: "Manutenção", emoji: "🛠️" },
+  { value: "planta", label: "Planta", emoji: "🌿" },
+  { value: "outro", label: "Outro", emoji: "🏡" },
 ];
 
 function mirrorItemsToLocalStorage(items: HomeItem[]) {
@@ -65,11 +65,18 @@ function mirrorItemsToLocalStorage(items: HomeItem[]) {
   localStorage.setItem("vivaraiz_items", JSON.stringify(localItems));
 }
 
+function formatDate(dateString: string | null) {
+  if (!dateString) return "";
+
+  return new Date(`${dateString}T00:00:00`).toLocaleDateString("pt-BR");
+}
+
 export default function MinhaCasaPage() {
   const router = useRouter();
 
   const [items, setItems] = useState<HomeItem[]>([]);
   const [userId, setUserId] = useState("");
+
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [loadingItems, setLoadingItems] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -78,6 +85,7 @@ export default function MinhaCasaPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"todos" | ItemCategory>("todos");
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState<ItemCategory>("comida");
@@ -130,11 +138,28 @@ export default function MinhaCasaPage() {
     mirrorItemsToLocalStorage(loadedItems);
   }
 
+  const foodsCount = useMemo(() => {
+    return items.filter((item) => item.category === "comida").length;
+  }, [items]);
+
+  const remindersCount = useMemo(() => {
+    return items.filter((item) => item.reminder_date).length;
+  }, [items]);
+
+  const locationCount = useMemo(() => {
+    return items.filter((item) => item.location).length;
+  }, [items]);
+
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
-      const matchesSearch = item.name
-        .toLowerCase()
-        .includes(search.toLowerCase());
+      const searchText = search.trim().toLowerCase();
+
+      const matchesSearch =
+        !searchText ||
+        item.name.toLowerCase().includes(searchText) ||
+        item.location?.toLowerCase().includes(searchText) ||
+        item.notes?.toLowerCase().includes(searchText) ||
+        item.quantity?.toLowerCase().includes(searchText);
 
       const matchesFilter = filter === "todos" || item.category === filter;
 
@@ -151,6 +176,23 @@ export default function MinhaCasaPage() {
     setReminderDate("");
     setNotes("");
     setEditingItemId(null);
+  }
+
+  function openNewItemForm() {
+    resetForm();
+    setShowForm(true);
+
+    setTimeout(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }, 50);
+  }
+
+  function closeForm() {
+    resetForm();
+    setShowForm(false);
   }
 
   async function saveItem(event: FormEvent<HTMLFormElement>) {
@@ -174,13 +216,13 @@ export default function MinhaCasaPage() {
       const { error } = await supabase
         .from("items")
         .update({
-          name,
+          name: name.trim(),
           category,
-          location: location || null,
-          quantity: quantity || null,
+          location: location.trim() || null,
+          quantity: quantity.trim() || null,
           expiration_date: expirationDate || null,
           reminder_date: reminderDate || null,
-          notes: notes || null,
+          notes: notes.trim() || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", editingItemId)
@@ -194,6 +236,7 @@ export default function MinhaCasaPage() {
       }
 
       resetForm();
+      setShowForm(false);
       setMessage("Item atualizado com sucesso.");
       await loadItems(userId);
       return;
@@ -201,13 +244,13 @@ export default function MinhaCasaPage() {
 
     const { error } = await supabase.from("items").insert({
       user_id: userId,
-      name,
+      name: name.trim(),
       category,
-      location: location || null,
-      quantity: quantity || null,
+      location: location.trim() || null,
+      quantity: quantity.trim() || null,
       expiration_date: expirationDate || null,
       reminder_date: reminderDate || null,
-      notes: notes || null,
+      notes: notes.trim() || null,
     });
 
     setSaving(false);
@@ -218,6 +261,7 @@ export default function MinhaCasaPage() {
     }
 
     resetForm();
+    setShowForm(false);
     setMessage("Item salvo com sucesso.");
     await loadItems(userId);
   }
@@ -231,11 +275,14 @@ export default function MinhaCasaPage() {
     setExpirationDate(item.expiration_date || "");
     setReminderDate(item.reminder_date || "");
     setNotes(item.notes || "");
+    setShowForm(true);
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    setTimeout(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }, 50);
   }
 
   async function deleteItem(id: string) {
@@ -262,17 +309,99 @@ export default function MinhaCasaPage() {
     }
 
     if (editingItemId === id) {
-      resetForm();
+      closeForm();
     }
 
     setMessage("Item excluído com sucesso.");
     await loadItems(userId);
   }
 
-  function getCategoryLabel(categoryValue: ItemCategory) {
+  function getCategoryData(categoryValue: ItemCategory) {
     return (
-      categories.find((category) => category.value === categoryValue)?.label ||
-      "Outro"
+      categories.find((categoryItem) => categoryItem.value === categoryValue) ||
+      categories[categories.length - 1]
+    );
+  }
+
+  function SummaryCard({
+    emoji,
+    value,
+    label,
+  }: {
+    emoji: string;
+    value: number;
+    label: string;
+  }) {
+    return (
+      <div className="rounded-[1.5rem] bg-white p-4 shadow-sm">
+        <p className="text-2xl">{emoji}</p>
+
+        <p className="mt-3 text-2xl font-black">{value}</p>
+
+        <p className="mt-1 text-sm text-[#6B715F]">{label}</p>
+      </div>
+    );
+  }
+
+  function ItemCard({ item }: { item: HomeItem }) {
+    const categoryData = getCategoryData(item.category);
+
+    return (
+      <article className="card-touch rounded-[2rem] bg-white p-5 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#F7F3EA] text-3xl">
+            {categoryData.emoji}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-[#7A8F5A]">
+              {categoryData.label}
+            </p>
+
+            <h3 className="mt-1 text-2xl font-black leading-tight">
+              {item.name}
+            </h3>
+
+            <p className="mt-3 rounded-2xl bg-[#F7F3EA] p-3 text-sm font-bold text-[#4F6F38]">
+              📍 {item.location || "Local não informado"}
+            </p>
+
+            <div className="mt-3 space-y-1 text-sm text-[#6B715F]">
+              {item.quantity && <p>Quantidade: {item.quantity}</p>}
+
+              {item.expiration_date && (
+                <p>Validade: {formatDate(item.expiration_date)}</p>
+              )}
+
+              {item.reminder_date && (
+                <p>Lembrete: {formatDate(item.reminder_date)}</p>
+              )}
+            </div>
+
+            {item.notes && (
+              <p className="mt-3 rounded-2xl bg-[#FBF8F0] p-3 text-sm text-[#5F6B55]">
+                {item.notes}
+              </p>
+            )}
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => startEditing(item)}
+                className="rounded-full bg-[#E3D8BD] px-4 py-3 text-sm font-black text-[#5B4A2F]"
+              >
+                Editar
+              </button>
+
+              <button
+                onClick={() => deleteItem(item.id)}
+                className="rounded-full bg-[#F2DED8] px-4 py-3 text-sm font-black text-[#8A3A2C]"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
     );
   }
 
@@ -291,66 +420,91 @@ export default function MinhaCasaPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F3EA] px-6 py-8 text-[#2F3A2F]">
+    <main className="mobile-page bg-[#F7F3EA] px-4 pt-5 text-[#2F3A2F] md:px-8 md:py-8">
       <div className="mx-auto max-w-6xl">
-        <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <header className="flex items-start justify-between gap-4">
           <div>
-            <a href="/dashboard" className="text-2xl font-black">
+            <a href="/dashboard" className="text-xl font-black md:text-2xl">
               🌱 VivaRaiz
             </a>
 
-            <h1 className="mt-6 text-4xl font-black">Minha Casa</h1>
+            <h1 className="mt-5 text-3xl font-black leading-tight md:text-5xl">
+              Minha Casa
+            </h1>
 
-            <p className="mt-2 text-[#6B715F]">
-              Cadastre alimentos, objetos, documentos, remédios e tudo que você
-              quer lembrar onde está.
+            <p className="mt-2 max-w-xl text-sm text-[#6B715F] md:text-base">
+              Salve alimentos, objetos, documentos, remédios e lembre onde tudo
+              está.
             </p>
           </div>
 
           <a
             href="/dashboard"
-            className="rounded-full border border-[#7A8F5A] px-5 py-3 text-center font-bold text-[#4F6F38]"
+            className="hidden rounded-full border border-[#7A8F5A] px-5 py-3 text-center font-bold text-[#4F6F38] md:block"
           >
-            Voltar ao painel
+            Voltar
           </a>
         </header>
 
         {message && (
-          <section className="mt-6 rounded-[2rem] bg-white p-5 text-sm font-bold text-[#4F6F38] shadow-sm">
+          <section className="mt-5 rounded-[2rem] bg-white p-5 text-sm font-bold text-[#4F6F38] shadow-sm">
             {message}
           </section>
         )}
 
-        <section className="mt-10 grid gap-6 lg:grid-cols-[420px_1fr]">
-          <form
-            onSubmit={saveItem}
-            className="rounded-[2rem] bg-white p-6 shadow-sm"
+        <section className="mt-6 grid grid-cols-3 gap-3">
+          <SummaryCard emoji="📦" value={items.length} label="itens" />
+          <SummaryCard emoji="🍅" value={foodsCount} label="comidas" />
+          <SummaryCard emoji="🔔" value={remindersCount} label="lembretes" />
+        </section>
+
+        <section className="mt-5 rounded-[2rem] bg-[#4F6F38] p-5 text-white shadow-sm md:p-7">
+          <p className="text-sm font-bold text-white/70">Organize sua casa</p>
+
+          <h2 className="mt-3 text-2xl font-black md:text-3xl">
+            Cadastre algo que você quer lembrar depois.
+          </h2>
+
+          <p className="mt-2 text-sm text-white/80 md:text-base">
+            Exemplo: arroz no armário, documento na gaveta, remédio na caixa ou
+            carregador no quarto.
+          </p>
+
+          <button
+            onClick={openNewItemForm}
+            className="mt-5 w-full rounded-full bg-white px-6 py-4 font-black text-[#4F6F38] transition hover:bg-[#EFE8DA] md:w-auto"
           >
+            + Adicionar item
+          </button>
+        </section>
+
+        {showForm && (
+          <section className="mt-5 rounded-[2rem] bg-white p-5 shadow-sm md:p-7">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-black">
-                  {editingItemId ? "Editar item" : "Adicionar item"}
+                <p className="text-3xl">{editingItemId ? "✏️" : "📦"}</p>
+
+                <h2 className="mt-3 text-2xl font-black">
+                  {editingItemId ? "Editar item" : "Novo item"}
                 </h2>
 
                 <p className="mt-1 text-sm text-[#6B715F]">
                   {editingItemId
-                    ? "Altere as informações e salve novamente."
-                    : "Agora seus itens ficam salvos na sua conta VivaRaiz."}
+                    ? "Altere as informações e salve."
+                    : "Preencha só o que fizer sentido."}
                 </p>
               </div>
 
-              {editingItemId && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="rounded-full bg-[#F7F3EA] px-4 py-2 text-sm font-bold text-[#4F6F38]"
-                >
-                  Cancelar
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={closeForm}
+                className="rounded-full bg-[#F7F3EA] px-4 py-2 text-sm font-black text-[#4F6F38]"
+              >
+                Fechar
+              </button>
             </div>
 
-            <div className="mt-6 space-y-4">
+            <form onSubmit={saveItem} className="mt-6 space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-bold">
                   Nome do item
@@ -360,7 +514,7 @@ export default function MinhaCasaPage() {
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Ex: tomate, carregador, certidão..."
-                  className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-3 outline-none focus:border-[#4F6F38]"
+                  className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-4 outline-none focus:border-[#4F6F38]"
                 />
               </div>
 
@@ -374,14 +528,14 @@ export default function MinhaCasaPage() {
                   onChange={(event) =>
                     setCategory(event.target.value as ItemCategory)
                   }
-                  className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-3 outline-none focus:border-[#4F6F38]"
+                  className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-4 outline-none focus:border-[#4F6F38]"
                 >
                   {categories.map((categoryOption) => (
                     <option
                       key={categoryOption.value}
                       value={categoryOption.value}
                     >
-                      {categoryOption.label}
+                      {categoryOption.emoji} {categoryOption.label}
                     </option>
                   ))}
                 </select>
@@ -396,7 +550,7 @@ export default function MinhaCasaPage() {
                   value={location}
                   onChange={(event) => setLocation(event.target.value)}
                   placeholder="Ex: geladeira, gaveta do quarto..."
-                  className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-3 outline-none focus:border-[#4F6F38]"
+                  className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-4 outline-none focus:border-[#4F6F38]"
                 />
               </div>
 
@@ -409,7 +563,7 @@ export default function MinhaCasaPage() {
                   value={quantity}
                   onChange={(event) => setQuantity(event.target.value)}
                   placeholder="Ex: 2 unidades, 1 pacote, 500g..."
-                  className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-3 outline-none focus:border-[#4F6F38]"
+                  className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-4 outline-none focus:border-[#4F6F38]"
                 />
               </div>
 
@@ -425,7 +579,7 @@ export default function MinhaCasaPage() {
                     onChange={(event) =>
                       setExpirationDate(event.target.value)
                     }
-                    className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-3 outline-none focus:border-[#4F6F38]"
+                    className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-4 outline-none focus:border-[#4F6F38]"
                   />
                 </div>
 
@@ -438,7 +592,7 @@ export default function MinhaCasaPage() {
                     type="date"
                     value={reminderDate}
                     onChange={(event) => setReminderDate(event.target.value)}
-                    className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-3 outline-none focus:border-[#4F6F38]"
+                    className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-4 outline-none focus:border-[#4F6F38]"
                   />
                 </div>
               </div>
@@ -451,9 +605,9 @@ export default function MinhaCasaPage() {
                 <textarea
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
-                  placeholder="Ex: usar primeiro, pertence à escola, documento importante..."
+                  placeholder="Ex: usar primeiro, documento importante..."
                   rows={3}
-                  className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-3 outline-none focus:border-[#4F6F38]"
+                  className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-4 outline-none focus:border-[#4F6F38]"
                 />
               </div>
 
@@ -468,131 +622,93 @@ export default function MinhaCasaPage() {
                   ? "Salvar alterações"
                   : "Salvar item"}
               </button>
-            </div>
-          </form>
-
-          <section>
-            <div className="rounded-[2rem] bg-white p-6 shadow-sm">
-              <h2 className="text-2xl font-black">Itens cadastrados</h2>
-
-              <div className="mt-5 grid gap-3 md:grid-cols-[1fr_220px]">
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar item..."
-                  className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-3 outline-none focus:border-[#4F6F38]"
-                />
-
-                <select
-                  value={filter}
-                  onChange={(event) =>
-                    setFilter(event.target.value as "todos" | ItemCategory)
-                  }
-                  className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-3 outline-none focus:border-[#4F6F38]"
-                >
-                  <option value="todos">Todas categorias</option>
-                  {categories.map((categoryOption) => (
-                    <option
-                      key={categoryOption.value}
-                      value={categoryOption.value}
-                    >
-                      {categoryOption.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-4">
-              {loadingItems ? (
-                <div className="rounded-[2rem] bg-white p-8 text-center shadow-sm">
-                  <p className="text-4xl">🌱</p>
-
-                  <h3 className="mt-4 text-xl font-black">
-                    Carregando seus itens...
-                  </h3>
-                </div>
-              ) : filteredItems.length === 0 ? (
-                <div className="rounded-[2rem] bg-white p-8 text-center shadow-sm">
-                  <p className="text-4xl">🏡</p>
-
-                  <h3 className="mt-4 text-xl font-black">
-                    Nenhum item encontrado
-                  </h3>
-
-                  <p className="mt-2 text-[#6B715F]">
-                    Cadastre o primeiro item da sua casa para começar.
-                  </p>
-                </div>
-              ) : (
-                filteredItems.map((item) => (
-                  <article
-                    key={item.id}
-                    className="rounded-[2rem] bg-white p-5 shadow-sm"
-                  >
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <p className="text-sm font-bold text-[#7A8F5A]">
-                          {getCategoryLabel(item.category)}
-                        </p>
-
-                        <h3 className="mt-1 text-2xl font-black">
-                          {item.name}
-                        </h3>
-
-                        <p className="mt-2 text-[#6B715F]">
-                          📍{" "}
-                          {item.location
-                            ? item.location
-                            : "Local não informado"}
-                        </p>
-
-                        {item.quantity && (
-                          <p className="mt-1 text-[#6B715F]">
-                            Quantidade: {item.quantity}
-                          </p>
-                        )}
-
-                        {item.expiration_date && (
-                          <p className="mt-1 text-[#6B715F]">
-                            Validade: {item.expiration_date}
-                          </p>
-                        )}
-
-                        {item.reminder_date && (
-                          <p className="mt-1 text-[#6B715F]">
-                            Lembrete: {item.reminder_date}
-                          </p>
-                        )}
-
-                        {item.notes && (
-                          <p className="mt-3 rounded-2xl bg-[#F7F3EA] p-3 text-sm text-[#5F6B55]">
-                            {item.notes}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <button
-                          onClick={() => startEditing(item)}
-                          className="rounded-full bg-[#E3D8BD] px-4 py-2 text-sm font-bold text-[#5B4A2F]"
-                        >
-                          Editar
-                        </button>
-
-                        <button
-                          onClick={() => deleteItem(item.id)}
-                          className="rounded-full bg-[#F2DED8] px-4 py-2 text-sm font-bold text-[#8A3A2C]"
-                        >
-                          Excluir
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))
-              )}
-            </div>
+            </form>
           </section>
+        )}
+
+        <section className="mt-6 rounded-[2rem] bg-white p-5 shadow-sm md:p-6">
+          <h2 className="text-2xl font-black">Itens cadastrados</h2>
+
+          <div className="mt-5 space-y-3 md:grid md:grid-cols-[1fr_240px] md:gap-3 md:space-y-0">
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar item, local ou observação..."
+              className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-4 outline-none focus:border-[#4F6F38]"
+            />
+
+            <select
+              value={filter}
+              onChange={(event) =>
+                setFilter(event.target.value as "todos" | ItemCategory)
+              }
+              className="w-full rounded-2xl border border-[#DDD2BC] bg-[#FBF8F0] px-4 py-4 outline-none focus:border-[#4F6F38]"
+            >
+              <option value="todos">Todas categorias</option>
+              {categories.map((categoryOption) => (
+                <option key={categoryOption.value} value={categoryOption.value}>
+                  {categoryOption.emoji} {categoryOption.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <p className="mt-4 text-sm text-[#6B715F]">
+            {filteredItems.length} resultado
+            {filteredItems.length === 1 ? "" : "s"} encontrado
+            {filteredItems.length === 1 ? "" : "s"}.
+          </p>
+        </section>
+
+        <section className="mt-5">
+          {loadingItems ? (
+            <div className="rounded-[2rem] bg-white p-8 text-center shadow-sm">
+              <p className="text-4xl">🌱</p>
+
+              <h3 className="mt-4 text-xl font-black">
+                Carregando seus itens...
+              </h3>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="rounded-[2rem] bg-white p-8 text-center shadow-sm">
+              <p className="text-5xl">🏡</p>
+
+              <h3 className="mt-4 text-2xl font-black">
+                Nenhum item encontrado
+              </h3>
+
+              <p className="mt-2 text-[#6B715F]">
+                Cadastre algo da sua casa para começar.
+              </p>
+
+              <button
+                onClick={openNewItemForm}
+                className="mt-6 rounded-full bg-[#4F6F38] px-6 py-4 font-black text-white"
+              >
+                Adicionar primeiro item
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {filteredItems.map((item) => (
+                <ItemCard key={item.id} item={item} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-6 rounded-[2rem] bg-white p-5 shadow-sm">
+          <p className="text-3xl">📍</p>
+
+          <h2 className="mt-4 text-2xl font-black">
+            {locationCount} item{locationCount === 1 ? "" : "s"} com local
+            informado
+          </h2>
+
+          <p className="mt-2 text-[#6B715F]">
+            Quanto mais você preenche o campo “Onde está guardado”, melhor fica
+            a busca do VivaRaiz.
+          </p>
         </section>
       </div>
     </main>

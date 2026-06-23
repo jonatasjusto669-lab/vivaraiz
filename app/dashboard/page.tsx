@@ -159,8 +159,7 @@ export default function DashboardPage() {
       const user = data.session.user;
       const currentUserId = user.id;
 
-      const nameFromUser = user.user_metadata?.name || user.email || "você";
-      setUserName(nameFromUser);
+      setUserName(user.user_metadata?.name || user.email || "você");
 
       const [itemsResult, plantsResult, missionsResult] = await Promise.all([
         supabase
@@ -230,6 +229,8 @@ export default function DashboardPage() {
         return diff <= 7;
       })
       .sort((a, b) => {
+        if (!a.expiration_date || !b.expiration_date) return 0;
+
         return (
           new Date(`${a.expiration_date}T00:00:00`).getTime() -
           new Date(`${b.expiration_date}T00:00:00`).getTime()
@@ -241,6 +242,8 @@ export default function DashboardPage() {
     return items
       .filter((item) => item.reminder_date)
       .sort((a, b) => {
+        if (!a.reminder_date || !b.reminder_date) return 0;
+
         return (
           new Date(`${a.reminder_date}T00:00:00`).getTime() -
           new Date(`${b.reminder_date}T00:00:00`).getTime()
@@ -274,16 +277,13 @@ export default function DashboardPage() {
     return missions.find((mission) => !mission.completed);
   }, [missions]);
 
-  const nextExpiringFood = expiringSoon[0];
-  const nextReminder = reminders[0];
-  const nextPlant = plantsNeedWater[0];
-
   const recommendedAction = useMemo(() => {
     if (dueReminders.length > 0) {
       return {
         emoji: "🔔",
-        title: "Cuide dos lembretes de hoje",
-        text: "Tem tarefa ou manutenção precisando de atenção agora.",
+        label: "Prioridade de hoje",
+        title: "Cuide dos seus lembretes",
+        text: "Tem algo precisando da sua atenção agora.",
         href: "/lembretes",
         button: "Ver lembretes",
       };
@@ -292,18 +292,20 @@ export default function DashboardPage() {
     if (expiringSoon.length > 0) {
       return {
         emoji: "🍅",
-        title: "Use algo que está perto de vencer",
-        text: "Abra sua cozinha e priorize os alimentos que vencem primeiro.",
+        label: "Evite desperdício",
+        title: "Use algo perto de vencer",
+        text: `${expiringSoon[0].name} precisa de atenção na cozinha.`,
         href: "/minha-cozinha",
-        button: "Ver cozinha",
+        button: "Abrir cozinha",
       };
     }
 
     if (plantsNeedWater.length > 0) {
       return {
         emoji: "🌿",
-        title: "Cuide da sua horta",
-        text: "Tem planta precisando de atenção hoje.",
+        label: "Cuidado com a horta",
+        title: "Tem planta pedindo água",
+        text: `${plantsNeedWater[0].name} precisa de cuidado hoje.`,
         href: "/minha-horta",
         button: "Ver horta",
       };
@@ -312,6 +314,7 @@ export default function DashboardPage() {
     if (pendingMission) {
       return {
         emoji: "🌤️",
+        label: "Vida fora da tela",
         title: "Faça uma missão offline",
         text: pendingMission.title,
         href: "/vida-offline",
@@ -321,21 +324,82 @@ export default function DashboardPage() {
 
     return {
       emoji: "🏡",
-      title: "Alimente sua casa digital",
-      text: "Cadastre mais itens para o VivaRaiz conseguir te ajudar melhor.",
+      label: "Comece por aqui",
+      title: "Cadastre sua vida real",
+      text: "Adicione itens, comidas, plantas e lembretes para o VivaRaiz te ajudar melhor.",
       href: "/minha-casa",
       button: "Adicionar item",
     };
-  }, [
-    dueReminders.length,
-    expiringSoon.length,
-    plantsNeedWater.length,
-    pendingMission,
-  ]);
+  }, [dueReminders, expiringSoon, plantsNeedWater, pendingMission]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push("/login");
+  }
+
+  function StatCard({
+    emoji,
+    value,
+    label,
+  }: {
+    emoji: string;
+    value: number;
+    label: string;
+  }) {
+    return (
+      <div className="rounded-[1.6rem] bg-white p-4 shadow-sm">
+        <p className="text-2xl">{emoji}</p>
+
+        <p className="mt-3 text-2xl font-black">{value}</p>
+
+        <p className="mt-1 text-sm text-[#6B715F]">{label}</p>
+      </div>
+    );
+  }
+
+  function QuickCard({
+    href,
+    emoji,
+    title,
+    description,
+    highlight,
+  }: {
+    href: string;
+    emoji: string;
+    title: string;
+    description: string;
+    highlight?: boolean;
+  }) {
+    return (
+      <a
+        href={href}
+        className={`card-touch rounded-[2rem] p-5 shadow-sm ${
+          highlight ? "bg-[#4F6F38] text-white" : "bg-white text-[#2F3A2F]"
+        }`}
+      >
+        <div className="flex items-start gap-4">
+          <div
+            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl ${
+              highlight ? "bg-white/15" : "bg-[#F7F3EA]"
+            }`}
+          >
+            {emoji}
+          </div>
+
+          <div>
+            <h3 className="text-xl font-black">{title}</h3>
+
+            <p
+              className={`mt-1 text-sm ${
+                highlight ? "text-white/80" : "text-[#6B715F]"
+              }`}
+            >
+              {description}
+            </p>
+          </div>
+        </div>
+      </a>
+    );
   }
 
   if (loading) {
@@ -355,322 +419,218 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F3EA] px-6 py-8 text-[#2F3A2F]">
+    <main className="mobile-page bg-[#F7F3EA] px-4 pt-5 text-[#2F3A2F] md:px-8 md:py-8">
       <div className="mx-auto max-w-6xl">
-        <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <header className="flex items-start justify-between gap-4">
           <div>
-            <a href="/" className="text-2xl font-black">
+            <a href="/" className="text-xl font-black md:text-2xl">
               🌱 VivaRaiz
             </a>
 
-            <h1 className="mt-6 text-4xl font-black">
-              Bom te ver por aqui, {userName}.
+            <h1 className="mt-5 text-3xl font-black leading-tight md:text-5xl">
+              Olá, {userName}.
             </h1>
 
-            <p className="mt-2 text-[#6B715F]">
-              Seu painel conectado ao Supabase, cuidando da casa, da comida, da
-              horta e da vida fora da tela.
+            <p className="mt-2 max-w-xl text-sm text-[#6B715F] md:text-base">
+              Cuide da casa, da comida, da horta e da vida fora da tela.
             </p>
           </div>
 
           <button
             onClick={handleLogout}
-            className="w-fit rounded-full border border-[#7A8F5A] px-5 py-3 text-center font-bold text-[#4F6F38]"
+            className="hidden rounded-full border border-[#7A8F5A] px-5 py-3 text-center font-bold text-[#4F6F38] md:block"
           >
             Sair
           </button>
         </header>
 
         {message && (
-          <section className="mt-6 rounded-[2rem] bg-white p-5 text-sm font-bold text-[#8A3A2C] shadow-sm">
+          <section className="mt-5 rounded-[2rem] bg-white p-5 text-sm font-bold text-[#8A3A2C] shadow-sm">
             {message}
           </section>
         )}
 
-        <section className="mt-10 grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
-          <div className="rounded-[2rem] bg-[#4F6F38] p-7 text-white shadow-sm">
-            <p className="text-sm font-bold text-white/70">
-              Jornada VivaRaiz de hoje
-            </p>
+        <section className="mt-6 rounded-[2.2rem] bg-[#4F6F38] p-6 text-white shadow-sm md:mt-10 md:p-8">
+          <p className="w-fit rounded-full bg-white/15 px-4 py-2 text-xs font-black text-white/80">
+            {recommendedAction.label}
+          </p>
 
-            <div className="mt-5 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-5xl">{recommendedAction.emoji}</p>
+          <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-6xl">{recommendedAction.emoji}</p>
 
-                <h2 className="mt-4 text-4xl font-black leading-tight">
-                  {recommendedAction.title}
-                </h2>
+              <h2 className="mt-5 text-3xl font-black leading-tight md:text-5xl">
+                {recommendedAction.title}
+              </h2>
 
-                <p className="mt-3 max-w-xl text-white/80">
-                  {recommendedAction.text}
-                </p>
-              </div>
-
-              <a
-                href={recommendedAction.href}
-                className="rounded-full bg-white px-6 py-4 text-center font-black text-[#4F6F38] transition hover:bg-[#EFE8DA]"
-              >
-                {recommendedAction.button}
-              </a>
+              <p className="mt-3 max-w-2xl text-white/80">
+                {recommendedAction.text}
+              </p>
             </div>
-          </div>
 
-          <div className="rounded-[2rem] bg-white p-7 shadow-sm">
-            <p className="text-sm font-bold text-[#7A8F5A]">Resumo</p>
-
-            <h2 className="mt-3 text-3xl font-black">
-              Sua vida real está tomando forma.
-            </h2>
-
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-[#F7F3EA] p-4">
-                <p className="text-2xl font-black">{items.length}</p>
-                <p className="text-sm text-[#6B715F]">itens</p>
-              </div>
-
-              <div className="rounded-2xl bg-[#F7F3EA] p-4">
-                <p className="text-2xl font-black">{plants.length}</p>
-                <p className="text-sm text-[#6B715F]">plantas</p>
-              </div>
-
-              <div className="rounded-2xl bg-[#F7F3EA] p-4">
-                <p className="text-2xl font-black">{reminders.length}</p>
-                <p className="text-sm text-[#6B715F]">lembretes</p>
-              </div>
-
-              <div className="rounded-2xl bg-[#F7F3EA] p-4">
-                <p className="text-2xl font-black">
-                  {completedMissions.length}
-                </p>
-                <p className="text-sm text-[#6B715F]">missões</p>
-              </div>
-            </div>
+            <a
+              href={recommendedAction.href}
+              className="rounded-full bg-white px-6 py-4 text-center font-black text-[#4F6F38] transition hover:bg-[#EFE8DA]"
+            >
+              {recommendedAction.button}
+            </a>
           </div>
         </section>
 
-        <section className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-5">
-          <a
-            href="/minha-cozinha"
-            className="rounded-[2rem] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-          >
+        <section className="mt-5 grid grid-cols-2 gap-3 md:mt-6 md:grid-cols-4">
+          <StatCard emoji="📦" value={items.length} label="itens" />
+          <StatCard emoji="🌿" value={plants.length} label="plantas" />
+          <StatCard emoji="🔔" value={reminders.length} label="lembretes" />
+          <StatCard
+            emoji="🌤️"
+            value={completedMissions.length}
+            label="missões"
+          />
+        </section>
+
+        <section className="mt-8">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-sm font-bold text-[#7A8F5A]">
+                Ações rápidas
+              </p>
+
+              <h2 className="mt-1 text-2xl font-black md:text-3xl">
+                O que vamos cuidar agora?
+              </h2>
+            </div>
+
+            <a
+              href="/mais"
+              className="hidden rounded-full bg-white px-5 py-3 text-sm font-black text-[#4F6F38] shadow-sm md:block"
+            >
+              Ver tudo
+            </a>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <QuickCard
+              href="/minha-casa"
+              emoji="🏡"
+              title="Minha Casa"
+              description="Cadastre objetos, alimentos, documentos e remédios."
+              highlight
+            />
+
+            <QuickCard
+              href="/minha-cozinha"
+              emoji="🍲"
+              title="Minha Cozinha"
+              description={
+                expiringSoon.length > 0
+                  ? `${expiringSoon.length} alimento${
+                      expiringSoon.length === 1 ? "" : "s"
+                    } perto de vencer.`
+                  : "Veja comidas e sugestões simples."
+              }
+            />
+
+            <QuickCard
+              href="/minha-horta"
+              emoji="🌱"
+              title="Minha Horta"
+              description={
+                plantsNeedWater.length > 0
+                  ? `${plantsNeedWater.length} planta${
+                      plantsNeedWater.length === 1 ? "" : "s"
+                    } precisa${
+                      plantsNeedWater.length === 1 ? "" : "m"
+                    } de água.`
+                  : "Cuide das regas e plantas."
+              }
+            />
+
+            <QuickCard
+              href="/lembretes"
+              emoji="🔔"
+              title="Lembretes"
+              description={
+                dueReminders.length > 0
+                  ? `${dueReminders.length} lembrete${
+                      dueReminders.length === 1 ? "" : "s"
+                    } para hoje.`
+                  : "Veja tarefas e coisas importantes."
+              }
+            />
+
+            <QuickCard
+              href="/onde-guardei"
+              emoji="🔎"
+              title="Onde Guardei?"
+              description="Encontre rápido onde cada coisa está."
+            />
+
+            <QuickCard
+              href="/vida-offline"
+              emoji="🌤️"
+              title="Vida Offline"
+              description={
+                pendingMission
+                  ? pendingMission.title
+                  : "Gere uma missão para sair da tela."
+              }
+            />
+          </div>
+        </section>
+
+        <section className="mt-8 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-[2rem] bg-white p-6 shadow-sm">
             <p className="text-3xl">🍅</p>
 
-            <h2 className="mt-4 text-xl font-black">Vencendo em breve</h2>
+            <h2 className="mt-4 text-2xl font-black">Cozinha agora</h2>
 
-            <p className="mt-2 text-sm text-[#6B715F]">
-              {expiringSoon.length === 0
-                ? "Nenhum alimento vencendo esta semana."
-                : `${expiringSoon.length} alimento${
-                    expiringSoon.length === 1 ? "" : "s"
-                  } precisa${
-                    expiringSoon.length === 1 ? "" : "m"
-                  } de atenção.`}
-            </p>
-
-            {nextExpiringFood && (
-              <p className="mt-3 rounded-2xl bg-[#F7F3EA] p-3 text-sm font-bold text-[#4F6F38]">
-                Próximo: {nextExpiringFood.name}
+            {expiringSoon.length === 0 ? (
+              <p className="mt-2 text-[#6B715F]">
+                Nenhum alimento vencendo esta semana.
               </p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {expiringSoon.slice(0, 3).map((food) => (
+                  <div
+                    key={food.id}
+                    className="rounded-2xl bg-[#F7F3EA] p-4"
+                  >
+                    <p className="font-black">{food.name}</p>
+
+                    <p className="mt-1 text-sm text-[#6B715F]">
+                      Validade: {food.expiration_date}
+                    </p>
+                  </div>
+                ))}
+              </div>
             )}
-          </a>
-
-          <a
-            href="/lembretes"
-            className="rounded-[2rem] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-          >
-            <p className="text-3xl">🔔</p>
-
-            <h2 className="mt-4 text-xl font-black">Lembretes</h2>
-
-            <p className="mt-2 text-sm text-[#6B715F]">
-              {reminders.length === 0
-                ? "Nenhum lembrete ativo."
-                : dueReminders.length > 0
-                ? `${dueReminders.length} lembrete${
-                    dueReminders.length === 1 ? "" : "s"
-                  } precisa${
-                    dueReminders.length === 1 ? "" : "m"
-                  } de atenção hoje.`
-                : `${reminders.length} lembrete${
-                    reminders.length === 1 ? "" : "s"
-                  } ativo${reminders.length === 1 ? "" : "s"}.`}
-            </p>
-
-            {nextReminder && (
-              <p className="mt-3 rounded-2xl bg-[#F7F3EA] p-3 text-sm font-bold text-[#4F6F38]">
-                Próximo: {nextReminder.name}
-              </p>
-            )}
-          </a>
-
-          <a
-            href="/onde-guardei"
-            className="rounded-[2rem] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-          >
-            <p className="text-3xl">📦</p>
-
-            <h2 className="mt-4 text-xl font-black">Onde guardei?</h2>
-
-            <p className="mt-2 text-sm text-[#6B715F]">
-              {items.length === 0
-                ? "Cadastre itens para encontrar depois."
-                : `${items.length} item${
-                    items.length === 1 ? "" : "s"
-                  } salvo${items.length === 1 ? "" : "s"} na sua casa.`}
-            </p>
-          </a>
-
-          <a
-            href="/minha-horta"
-            className="rounded-[2rem] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-          >
-            <p className="text-3xl">🌿</p>
-
-            <h2 className="mt-4 text-xl font-black">Minha Horta</h2>
-
-            <p className="mt-2 text-sm text-[#6B715F]">
-              {plantsNeedWater.length === 0
-                ? "Nenhuma planta precisa de rega agora."
-                : `${plantsNeedWater.length} planta${
-                    plantsNeedWater.length === 1 ? "" : "s"
-                  } precisa${
-                    plantsNeedWater.length === 1 ? "" : "m"
-                  } de rega.`}
-            </p>
-
-            {nextPlant && (
-              <p className="mt-3 rounded-2xl bg-[#F7F3EA] p-3 text-sm font-bold text-[#4F6F38]">
-                Próxima: {nextPlant.name}
-              </p>
-            )}
-          </a>
-
-          <a
-            href="/vida-offline"
-            className="rounded-[2rem] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-          >
-            <p className="text-3xl">🌤️</p>
-
-            <h2 className="mt-4 text-xl font-black">Missão offline</h2>
-
-            <p className="mt-2 text-sm text-[#6B715F]">
-              {pendingMission
-                ? pendingMission.title
-                : "Gere uma nova missão para hoje."}
-            </p>
-          </a>
-        </section>
-
-        <section className="mt-10">
-          <div>
-            <p className="text-sm font-bold text-[#7A8F5A]">
-              Áreas do VivaRaiz
-            </p>
-
-            <h2 className="mt-2 text-3xl font-black">
-              Escolha o que quer cuidar agora
-            </h2>
           </div>
 
-          <div className="mt-6 grid gap-5 lg:grid-cols-4">
-            <a
-              href="/minha-casa"
-              className="rounded-[2rem] bg-[#4F6F38] p-7 text-white shadow-sm transition hover:-translate-y-1 hover:shadow-md lg:col-span-2"
-            >
-              <p className="text-4xl">🏡</p>
+          <div className="rounded-[2rem] bg-white p-6 shadow-sm">
+            <p className="text-3xl">🌿</p>
 
-              <h3 className="mt-5 text-3xl font-black">Minha Casa</h3>
+            <h2 className="mt-4 text-2xl font-black">Horta agora</h2>
 
-              <p className="mt-3 max-w-xl text-white/80">
-                Cadastre objetos, documentos, remédios, alimentos e tudo que você
-                quer lembrar onde está.
+            {plantsNeedWater.length === 0 ? (
+              <p className="mt-2 text-[#6B715F]">
+                Nenhuma planta precisa de rega agora.
               </p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {plantsNeedWater.slice(0, 3).map((plant) => (
+                  <div
+                    key={plant.id}
+                    className="rounded-2xl bg-[#F7F3EA] p-4"
+                  >
+                    <p className="font-black">{plant.name}</p>
 
-              <p className="mt-6 font-black">Abrir minha casa →</p>
-            </a>
-
-            <a
-              href="/minha-cozinha"
-              className="rounded-[2rem] bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-            >
-              <p className="text-4xl">🍲</p>
-
-              <h3 className="mt-5 text-2xl font-black">Minha Cozinha</h3>
-
-              <p className="mt-3 text-[#6B715F]">
-                Veja o que está vencendo e o que dá para cozinhar.
-              </p>
-            </a>
-
-            <a
-              href="/minha-horta"
-              className="rounded-[2rem] bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-            >
-              <p className="text-4xl">🌱</p>
-
-              <h3 className="mt-5 text-2xl font-black">Minha Horta</h3>
-
-              <p className="mt-3 text-[#6B715F]">
-                Lembre regas e cuidados com suas plantas.
-              </p>
-            </a>
-
-            <a
-              href="/onde-guardei"
-              className="rounded-[2rem] bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-            >
-              <p className="text-4xl">🔎</p>
-
-              <h3 className="mt-5 text-2xl font-black">Onde guardei?</h3>
-
-              <p className="mt-3 text-[#6B715F]">
-                Encontre rápido onde colocou cada coisa.
-              </p>
-            </a>
-
-            <a
-              href="/lembretes"
-              className="rounded-[2rem] bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-            >
-              <p className="text-4xl">🔔</p>
-
-              <h3 className="mt-5 text-2xl font-black">Lembretes</h3>
-
-              <p className="mt-3 text-[#6B715F]">
-                Tarefas, manutenções e coisas importantes.
-              </p>
-            </a>
-
-            <a
-              href="/vida-offline"
-              className="rounded-[2rem] bg-[#E3D8BD] p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-md lg:col-span-2"
-            >
-              <p className="text-4xl">🌤️</p>
-
-              <h3 className="mt-5 text-3xl font-black">Vida Offline</h3>
-
-              <p className="mt-3 max-w-xl text-[#5B4A2F]">
-                Pequenas missões para sair da tela e cuidar da vida real com
-                calma.
-              </p>
-
-              <p className="mt-6 font-black text-[#4F6F38]">
-                Ver missão de hoje →
-              </p>
-            </a>
-
-            <a
-              href="/backup"
-              className="rounded-[2rem] bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-            >
-              <p className="text-4xl">📦</p>
-
-              <h3 className="mt-5 text-2xl font-black">Backup</h3>
-
-              <p className="mt-3 text-[#6B715F]">
-                Exporte e restaure seus dados locais.
-              </p>
-            </a>
+                    <p className="mt-1 text-sm text-[#6B715F]">
+                      Próxima rega: {plant.next_watering_date}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </div>

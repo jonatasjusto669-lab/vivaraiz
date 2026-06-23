@@ -55,28 +55,30 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-24px)] max-w-xl -translate-x-1/2 rounded-full border border-[#DDD2BC] bg-white/95 px-2 py-2 shadow-xl backdrop-blur">
-      <div className="grid grid-cols-5 gap-1">
-        {navItems.map((item) => {
-          const active =
-            pathname === item.href ||
-            (item.href === "/mais" && moreRoutes.includes(pathname));
+    <nav className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
+      <div className="mx-auto max-w-xl rounded-[2rem] border border-[#DDD2BC] bg-white/95 p-2 shadow-2xl backdrop-blur">
+        <div className="grid grid-cols-5 gap-1">
+          {navItems.map((item) => {
+            const active =
+              pathname === item.href ||
+              (item.href === "/mais" && moreRoutes.includes(pathname));
 
-          return (
-            <a
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center justify-center rounded-full px-2 py-2 text-xs font-black transition ${
-                active
-                  ? "bg-[#4F6F38] text-white"
-                  : "text-[#6B715F] hover:bg-[#F7F3EA]"
-              }`}
-            >
-              <span className="text-lg">{item.emoji}</span>
-              <span className="mt-1">{item.label}</span>
-            </a>
-          );
-        })}
+            return (
+              <a
+                key={item.href}
+                href={item.href}
+                className={`flex min-h-[64px] flex-col items-center justify-center rounded-[1.4rem] px-2 py-2 text-[11px] font-black transition ${
+                  active
+                    ? "bg-[#4F6F38] text-white shadow-md"
+                    : "text-[#6B715F] active:bg-[#F7F3EA] hover:bg-[#F7F3EA]"
+                }`}
+              >
+                <span className="text-[22px] leading-none">{item.emoji}</span>
+                <span className="mt-1 leading-none">{item.label}</span>
+              </a>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );
