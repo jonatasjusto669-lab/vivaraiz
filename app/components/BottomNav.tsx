@@ -39,6 +39,7 @@ const moreRoutes = [
   "/vida-offline",
   "/backup",
   "/lista-compras",
+  "/sobre",
 ];
 
 export default function BottomNav() {

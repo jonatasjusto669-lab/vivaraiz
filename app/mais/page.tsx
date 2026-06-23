@@ -12,10 +12,16 @@ const moreItems = [
     description: "Aprenda o passo a passo para aproveitar melhor o VivaRaiz.",
   },
   {
-  href: "/lista-compras",
-  emoji: "🛒",
-  title: "Lista de Compras",
-  description: "Anote o que precisa comprar e marque quando já comprou.",
+    href: "/sobre",
+    emoji: "🌱",
+    title: "Sobre o VivaRaiz",
+    description: "Entenda a ideia do app, privacidade, versão e propósito.",
+  },
+  {
+    href: "/lista-compras",
+    emoji: "🛒",
+    title: "Lista de Compras",
+    description: "Anote o que precisa comprar e marque quando já comprou.",
   },
   {
     href: "/configuracoes",
