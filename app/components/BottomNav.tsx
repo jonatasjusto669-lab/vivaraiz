@@ -42,7 +42,13 @@ const moreRoutes = [
 export default function BottomNav() {
   const pathname = usePathname();
 
-  const hiddenRoutes = ["/", "/login", "/cadastro"];
+  const hiddenRoutes = [
+    "/",
+    "/login",
+    "/cadastro",
+    "/esqueci-senha",
+    "/redefinir-senha",
+  ];
 
   if (hiddenRoutes.includes(pathname)) {
     return null;
