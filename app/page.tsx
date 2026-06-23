@@ -136,15 +136,25 @@ export default function HomePage() {
                 </>
               )}
             </div>
+
+            <div className="mt-5 flex flex-wrap gap-3 text-sm font-bold text-white/80">
+              <a href="/privacidade" className="underline underline-offset-4">
+                Privacidade
+              </a>
+
+              <span>•</span>
+
+              <a href="/termos" className="underline underline-offset-4">
+                Termos de Uso
+              </a>
+            </div>
           </div>
 
           <div className="grid gap-4">
             <div className="rounded-[2rem] bg-white p-6 shadow-sm">
               <p className="text-4xl">📱</p>
 
-              <h2 className="mt-4 text-2xl font-black">
-                Feito para celular
-              </h2>
+              <h2 className="mt-4 text-2xl font-black">Feito para celular</h2>
 
               <p className="mt-2 text-[#6B715F]">
                 Use pelo navegador e instale na tela inicial como um aplicativo.
@@ -274,6 +284,20 @@ export default function HomePage() {
 
         <footer className="py-8 text-center text-sm text-[#6B715F]">
           <p>VivaRaiz 1.0 — feito para organizar a vida real 🌱</p>
+
+          <div className="mt-4 flex justify-center gap-4 font-bold">
+            <a href="/sobre" className="text-[#4F6F38]">
+              Sobre
+            </a>
+
+            <a href="/privacidade" className="text-[#4F6F38]">
+              Privacidade
+            </a>
+
+            <a href="/termos" className="text-[#4F6F38]">
+              Termos
+            </a>
+          </div>
         </footer>
       </div>
     </main>
