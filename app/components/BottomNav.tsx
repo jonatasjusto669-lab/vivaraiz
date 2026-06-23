@@ -30,7 +30,14 @@ const navItems = [
   },
 ];
 
-const moreRoutes = ["/onde-guardei", "/lembretes", "/vida-offline", "/backup"];
+const moreRoutes = [
+  "/mais",
+  "/configuracoes",
+  "/onde-guardei",
+  "/lembretes",
+  "/vida-offline",
+  "/backup",
+];
 
 export default function BottomNav() {
   const pathname = usePathname();

@@ -6,6 +6,12 @@ import { supabase } from "@/lib/supabase";
 
 const moreItems = [
   {
+    href: "/configuracoes",
+    emoji: "⚙️",
+    title: "Configurações",
+    description: "Veja sua conta, altere seu nome e informações do app.",
+  },
+  {
     href: "/onde-guardei",
     emoji: "🔎",
     title: "Onde Guardei?",
@@ -98,12 +104,21 @@ export default function MaisPage() {
 
           {userEmail && <p className="mt-2 text-white/80">{userEmail}</p>}
 
-          <button
-            onClick={handleLogout}
-            className="mt-6 rounded-full bg-white px-6 py-4 font-black text-[#4F6F38] transition hover:bg-[#EFE8DA]"
-          >
-            Sair da conta
-          </button>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <a
+              href="/configuracoes"
+              className="rounded-full bg-white px-6 py-4 text-center font-black text-[#4F6F38] transition hover:bg-[#EFE8DA]"
+            >
+              Ver configurações
+            </a>
+
+            <button
+              onClick={handleLogout}
+              className="rounded-full border border-white/50 px-6 py-4 font-black text-white transition hover:bg-white/10"
+            >
+              Sair da conta
+            </button>
+          </div>
         </section>
 
         <section className="mt-8 grid gap-4">
