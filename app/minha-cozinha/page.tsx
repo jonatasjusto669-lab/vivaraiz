@@ -123,10 +123,15 @@ export default function MinhaCozinhaPage() {
   const router = useRouter();
 
   const [foods, setFoods] = useState<FoodItem[]>([]);
+  const [userId, setUserId] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [filter, setFilter] = useState<FoodFilter>("prioridade");
   const [search, setSearch] = useState("");
+  const [addingToShoppingId, setAddingToShoppingId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     async function loadFoods() {
@@ -138,6 +143,8 @@ export default function MinhaCozinhaPage() {
       }
 
       const currentUserId = sessionData.session.user.id;
+
+      setUserId(currentUserId);
 
       const { data, error } = await supabase
         .from("items")
@@ -260,6 +267,36 @@ export default function MinhaCozinhaPage() {
 
   const mainFood = priorityFoods[0];
 
+  async function addToShoppingList(food: FoodItem) {
+    if (!userId) {
+      setMessage("Você precisa estar logado para adicionar à lista.");
+      return;
+    }
+
+    setMessage("");
+    setAddingToShoppingId(food.id);
+
+    const { error } = await supabase.from("shopping_items").insert({
+      user_id: userId,
+      name: food.name,
+      category: "mercado",
+      quantity: food.quantity || null,
+      notes: `Reposição adicionada pela Minha Cozinha. Local atual: ${
+        food.location || "não informado"
+      }.`,
+      purchased: false,
+    });
+
+    setAddingToShoppingId(null);
+
+    if (error) {
+      setMessage(`Erro ao adicionar na lista de compras: ${error.message}`);
+      return;
+    }
+
+    setMessage(`${food.name} foi adicionado à Lista de Compras.`);
+  }
+
   function FilterButton({
     value,
     label,
@@ -342,12 +379,24 @@ export default function MinhaCozinhaPage() {
               </p>
             )}
 
-            <a
-              href="/minha-casa"
-              className="mt-4 block rounded-full bg-[#E3D8BD] px-4 py-3 text-center text-sm font-black text-[#5B4A2F]"
-            >
-              Editar na Minha Casa
-            </a>
+            <div className="mt-4 grid gap-2">
+              <button
+                onClick={() => addToShoppingList(food)}
+                disabled={addingToShoppingId === food.id}
+                className="rounded-full bg-[#4F6F38] px-4 py-3 text-center text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {addingToShoppingId === food.id
+                  ? "Adicionando..."
+                  : "🛒 Comprar novamente"}
+              </button>
+
+              <a
+                href="/minha-casa"
+                className="block rounded-full bg-[#E3D8BD] px-4 py-3 text-center text-sm font-black text-[#5B4A2F]"
+              >
+                Editar na Minha Casa
+              </a>
+            </div>
           </div>
         </div>
       </article>
@@ -399,7 +448,7 @@ export default function MinhaCozinhaPage() {
         </header>
 
         {message && (
-          <section className="mt-5 rounded-[2rem] bg-white p-5 text-sm font-bold text-[#8A3A2C] shadow-sm">
+          <section className="mt-5 rounded-[2rem] bg-white p-5 text-sm font-bold text-[#4F6F38] shadow-sm">
             {message}
           </section>
         )}
@@ -422,12 +471,24 @@ export default function MinhaCozinhaPage() {
                 {mainFood.location || "um local não informado"}.
               </p>
 
-              <a
-                href="/minha-casa"
-                className="mt-6 inline-block rounded-full bg-white px-6 py-4 text-center font-black text-[#4F6F38] transition hover:bg-[#EFE8DA]"
-              >
-                Adicionar comida
-              </a>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={() => addToShoppingList(mainFood)}
+                  disabled={addingToShoppingId === mainFood.id}
+                  className="rounded-full bg-white px-6 py-4 text-center font-black text-[#4F6F38] transition hover:bg-[#EFE8DA] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {addingToShoppingId === mainFood.id
+                    ? "Adicionando..."
+                    : "🛒 Comprar novamente"}
+                </button>
+
+                <a
+                  href="/minha-casa"
+                  className="rounded-full border border-white/50 px-6 py-4 text-center font-black text-white transition hover:bg-white/10"
+                >
+                  Adicionar comida
+                </a>
+              </div>
             </div>
           ) : (
             <div className="mt-6">
@@ -555,9 +616,7 @@ export default function MinhaCozinhaPage() {
             <div className="rounded-[2rem] bg-white p-8 text-center shadow-sm">
               <p className="text-5xl">🔎</p>
 
-              <h2 className="mt-4 text-2xl font-black">
-                Nada encontrado
-              </h2>
+              <h2 className="mt-4 text-2xl font-black">Nada encontrado</h2>
 
               <p className="mt-2 text-[#6B715F]">
                 Tente outro filtro ou outra busca.
@@ -585,6 +644,13 @@ export default function MinhaCozinhaPage() {
               {laterFoods.length === 1 ? "" : "s"} vencem depois e{" "}
               {noDateFoods.length} estão sem validade cadastrada.
             </p>
+
+            <a
+              href="/lista-compras"
+              className="mt-5 inline-block rounded-full bg-[#E3D8BD] px-5 py-3 text-sm font-black text-[#5B4A2F]"
+            >
+              Abrir Lista de Compras
+            </a>
           </section>
         )}
       </div>
