@@ -6,6 +6,12 @@ import { supabase } from "@/lib/supabase";
 
 const moreItems = [
   {
+    href: "/como-usar",
+    emoji: "📘",
+    title: "Como usar",
+    description: "Aprenda o passo a passo para aproveitar melhor o VivaRaiz.",
+  },
+  {
     href: "/configuracoes",
     emoji: "⚙️",
     title: "Configurações",
@@ -83,24 +89,28 @@ export default function MaisPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F3EA] px-6 pb-28 pt-8 text-[#2F3A2F]">
+    <main className="mobile-page bg-[#F7F3EA] px-4 pt-5 text-[#2F3A2F] md:px-8 md:py-8">
       <div className="mx-auto max-w-4xl">
         <header>
-          <a href="/dashboard" className="text-2xl font-black">
+          <a href="/dashboard" className="text-xl font-black md:text-2xl">
             🌱 VivaRaiz
           </a>
 
-          <h1 className="mt-6 text-4xl font-black">Mais</h1>
+          <h1 className="mt-5 text-3xl font-black leading-tight md:text-5xl">
+            Mais
+          </h1>
 
-          <p className="mt-2 text-[#6B715F]">
+          <p className="mt-2 text-sm text-[#6B715F] md:text-base">
             Acesse outras áreas importantes do VivaRaiz.
           </p>
         </header>
 
-        <section className="mt-8 rounded-[2rem] bg-[#4F6F38] p-7 text-white shadow-sm">
-          <p className="text-sm font-bold text-white/70">Sua conta</p>
+        <section className="mt-6 rounded-[2.2rem] bg-[#4F6F38] p-6 text-white shadow-sm md:p-8">
+          <p className="w-fit rounded-full bg-white/15 px-4 py-2 text-xs font-black text-white/80">
+            Sua conta
+          </p>
 
-          <h2 className="mt-3 text-3xl font-black">Olá, {userName}</h2>
+          <h2 className="mt-5 text-3xl font-black">Olá, {userName}</h2>
 
           {userEmail && <p className="mt-2 text-white/80">{userEmail}</p>}
 
@@ -121,29 +131,33 @@ export default function MaisPage() {
           </div>
         </section>
 
-        <section className="mt-8 grid gap-4">
+        <section className="mt-6 grid gap-4">
           {moreItems.map((item) => (
             <a
               key={item.href}
               href={item.href}
-              className="rounded-[2rem] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              className="card-touch rounded-[2rem] bg-white p-5 shadow-sm md:p-6"
             >
               <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F7F3EA] text-3xl">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#F7F3EA] text-3xl">
                   {item.emoji}
                 </div>
 
                 <div>
-                  <h2 className="text-2xl font-black">{item.title}</h2>
+                  <h2 className="text-xl font-black md:text-2xl">
+                    {item.title}
+                  </h2>
 
-                  <p className="mt-2 text-[#6B715F]">{item.description}</p>
+                  <p className="mt-2 text-sm text-[#6B715F] md:text-base">
+                    {item.description}
+                  </p>
                 </div>
               </div>
             </a>
           ))}
         </section>
 
-        <section className="mt-8 rounded-[2rem] bg-white p-6 shadow-sm">
+        <section className="mt-6 rounded-[2rem] bg-white p-6 shadow-sm">
           <p className="text-3xl">💡</p>
 
           <h2 className="mt-4 text-2xl font-black">Dica VivaRaiz</h2>

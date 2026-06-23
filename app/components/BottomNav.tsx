@@ -32,6 +32,7 @@ const navItems = [
 
 const moreRoutes = [
   "/mais",
+  "/como-usar",
   "/configuracoes",
   "/onde-guardei",
   "/lembretes",
