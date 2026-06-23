@@ -9,6 +9,7 @@ type FeedbackType = "sugestao" | "erro" | "elogio" | "outro";
 type Feedback = {
   id: string;
   user_id: string;
+  user_email: string | null;
   type: FeedbackType;
   title: string;
   message: string;
@@ -52,6 +53,7 @@ export default function FeedbackPage() {
   const router = useRouter();
 
   const [userId, setUserId] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
 
   const [loadingAuth, setLoadingAuth] = useState(true);
@@ -74,8 +76,10 @@ export default function FeedbackPage() {
       }
 
       const currentUserId = data.session.user.id;
+      const currentUserEmail = data.session.user.email || "";
 
       setUserId(currentUserId);
+      setUserEmail(currentUserEmail);
       setLoadingAuth(false);
 
       await loadFeedbacks(currentUserId);
@@ -146,6 +150,7 @@ export default function FeedbackPage() {
 
     const { error } = await supabase.from("feedbacks").insert({
       user_id: userId,
+      user_email: userEmail || null,
       type,
       title: title.trim(),
       message: feedbackMessage.trim(),
@@ -337,12 +342,15 @@ export default function FeedbackPage() {
 
         <section className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
           <SummaryCard emoji="💬" value={feedbacks.length} label="feedbacks" />
+
           <SummaryCard
             emoji="💡"
             value={totalSuggestions}
             label="sugestões"
           />
+
           <SummaryCard emoji="🐞" value={totalErrors} label="erros" />
+
           <SummaryCard emoji="🌱" value={totalCompliments} label="elogios" />
         </section>
 
@@ -390,9 +398,7 @@ export default function FeedbackPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-bold">
-                Mensagem
-              </label>
+              <label className="mb-2 block text-sm font-bold">Mensagem</label>
 
               <textarea
                 value={feedbackMessage}
