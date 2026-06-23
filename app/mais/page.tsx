@@ -24,6 +24,12 @@ const moreItems = [
     description: "Anote o que precisa comprar e marque quando já comprou.",
   },
   {
+  href: "/privacidade",
+  emoji: "🔐",
+  title: "Privacidade",
+  description: "Veja como o VivaRaiz trata os dados cadastrados no app.",
+  },
+  {
     href: "/configuracoes",
     emoji: "⚙️",
     title: "Configurações",
