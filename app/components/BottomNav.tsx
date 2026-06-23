@@ -33,14 +33,15 @@ const navItems = [
 const moreRoutes = [
   "/mais",
   "/como-usar",
+  "/sobre",
   "/privacidade",
+  "/termos",
   "/configuracoes",
   "/onde-guardei",
   "/lembretes",
   "/vida-offline",
   "/backup",
   "/lista-compras",
-  "/sobre",
 ];
 
 export default function BottomNav() {

@@ -18,16 +18,22 @@ const moreItems = [
     description: "Entenda a ideia do app, privacidade, versão e propósito.",
   },
   {
+    href: "/privacidade",
+    emoji: "🔐",
+    title: "Privacidade",
+    description: "Veja como o VivaRaiz trata os dados cadastrados no app.",
+  },
+  {
+    href: "/termos",
+    emoji: "📄",
+    title: "Termos de Uso",
+    description: "Veja as regras simples de uso do VivaRaiz.",
+  },
+  {
     href: "/lista-compras",
     emoji: "🛒",
     title: "Lista de Compras",
     description: "Anote o que precisa comprar e marque quando já comprou.",
-  },
-  {
-  href: "/privacidade",
-  emoji: "🔐",
-  title: "Privacidade",
-  description: "Veja como o VivaRaiz trata os dados cadastrados no app.",
   },
   {
     href: "/configuracoes",
