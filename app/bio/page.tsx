@@ -12,6 +12,13 @@ const links = [
     primary: true,
   },
   {
+  href: "/faq",
+  emoji: "❓",
+  title: "Perguntas frequentes",
+  description: "Tire dúvidas antes de testar o app.",
+  primary: false,
+  },
+  {
     href: "/cadastro",
     emoji: "✅",
     title: "Criar conta grátis",
